@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Clone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .chat-bg { 
+            background-color: #e5ddd5; 
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); 
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #ced0d1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen overflow-hidden flex">
+
+    <div class="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-gray-300 flex flex-col">
+        <div class="bg-[#f0f2f5] p-3 flex justify-between items-center">
+            <img src="https://ui-avatars.com/api/?name=Milano+Cleverley&background=075E54&color=fff" class="w-10 h-10 rounded-full cursor-pointer">
+            <div class="flex gap-5 text-gray-600">
+                <i class="fa-solid fa-circle-notch cursor-pointer"></i>
+                <i class="fa-solid fa-message cursor-pointer"></i>
+                <i class="fa-solid fa-ellipsis-vertical cursor-pointer"></i>
+            </div>
+        </div>
+
+        <div class="p-2 bg-white">
+            <div class="bg-[#f0f2f5] flex items-center px-4 py-1.5 rounded-lg">
+                <i class="fa-solid fa-magnifying-glass text-gray-500 text-sm"></i>
+                <input type="text" placeholder="Cari atau mulai chat baru" class="bg-transparent border-none focus:ring-0 text-sm w-full ml-4">
+            </div>
+        </div>
+
+        <div id="contact-list" class="flex-1 overflow-y-auto custom-scrollbar"></div>
+    </div>
+
+    <div id="chat-window" class="hidden md:flex flex-1 flex-col relative chat-bg">
+        <div class="bg-[#f0f2f5] p-3 flex justify-between items-center border-b border-gray-300">
+            <div class="flex items-center gap-3">
+                <img id="active-avatar" src="" class="w-10 h-10 rounded-full">
+                <div>
+                    <h2 id="active-name" class="font-medium text-gray-800"></h2>
+                    <p id="active-status" class="text-xs text-gray-500"></p>
+                </div>
+            </div>
+            <div class="flex gap-5 text-gray-600 mr-2">
+                <i class="fa-solid fa-video cursor-pointer"></i>
+                <i class="fa-solid fa-phone cursor-pointer"></i>
+                <i class="fa-solid fa-ellipsis-vertical cursor-pointer"></i>
+            </div>
+        </div>
+
+        <div id="message-container" class="flex-1 overflow-y-auto p-10 flex flex-col gap-2 custom-scrollbar"></div>
+
+        <div class="bg-[#f0f2f5] p-3 flex items-center gap-4">
+            <i class="fa-regular fa-face-smile text-2xl text-gray-600 cursor-pointer"></i>
+            <input type="text" id="input-chat" placeholder="Ketik pesan" class="flex-1 py-2 px-4 rounded-lg border-none focus:ring-0">
+            <i id="send-btn" class="fa-solid fa-paper-plane text-2xl text-gray-600 cursor-pointer"></i>
+        </div>
+    </div>
+
+    <script>
+        let currentContactId = null;
+        let contacts = [
+            { id: 1, name: "Kenneth", img: "https://i.pravatar.cc/150?u=1", status: "online", lastMsg: "Project videonya aman?", time: "08:15", unread: 0 },
+            { id: 2, name: "Athar", img: "https://i.pravatar.cc/150?u=2", status: "offline", lastMsg: "Cek codingan yang tadi", time: "07:30", unread: 1 },
+            { id: 3, name: "Cedric", img: "https://i.pravatar.cc/150?u=3", status: "online", lastMsg: "Garis Batas fix ya", time: "15:20", unread: 4 },
+            { id: 4, name: "Orlando", img: "https://i.pravatar.cc/150?u=4", status: "online", lastMsg: "Gas kan", time: "16:10", unread: 0 },
+            { id: 5, name: "Ihsan", img: "https://i.pravatar.cc/150?u=5", status: "offline", lastMsg: "Siap, kabarin aja", time: "16:00", unread: 0 },
+            { id: 6, name: "Jackson", img: "https://i.pravatar.cc/150?u=6", status: "online", lastMsg: "Oke oke", time: "16:05", unread: 0 },
+            { id: 7, name: "Ethan", img: "https://i.pravatar.cc/150?u=7", status: "offline", lastMsg: "Lagi di gym nih", time: "17:00", unread: 0 },
+            { id: 8, name: "Devon", img: "https://i.pravatar.cc/150?u=8", status: "online", lastMsg: "Besok sekolah jam berapa?", time: "18:20", unread: 2 },
+            { id: 9, name: "Vincenzio", img: "https://i.pravatar.cc/150?u=9", status: "offline", lastMsg: "Udah belajar German?", time: "19:00", unread: 0 },
+            { id: 10, name: "Grup IGS Palembang", img: "https://ui-avatars.com/api/?name=IGS+Group&background=128C7E&color=fff", status: "grup", lastMsg: "Tugas ekonomi kumpul kapan?", time: "20:15", unread: 15 }
+        ];
+
+        const replies = ["Siap!", "Oke bro.", "Mantap.", "Lagi sibuk nih.", "Woke.", "Sip.", "Hahaha iya.", "Nanti ya."];
+
+        function renderContacts() {
+            const list = document.getElementById('contact-list');
+            list.innerHTML = '';
+            contacts.forEach(c => {
+                list.innerHTML += `
+                    <div onclick="openChat(${c.id})" class="flex items-center p-3 cursor-pointer ${currentContactId === c.id ? 'bg-[#ebebeb]' : 'hover:bg-[#f5f6f6]'} border-b border-gray-100">
+                        <img src="${c.img}" class="w-12 h-12 rounded-full flex-shrink-0 object-cover">
+                        <div class="ml-4 flex-1">
+                            <div class="flex justify-between items-center">
+                                <h3 class="font-medium text-gray-900">${c.name}</h3>
+                                <span class="text-xs text-gray-500">${c.time}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <p class="text-sm text-gray-500 truncate w-48">${c.lastMsg}</p>
+                                ${c.unread > 0 ? `<span class="bg-[#25D366] text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[20px] text-center">${c.unread}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function openChat(id) {
+            currentContactId = id;
+            const contactIndex = contacts.findIndex(c => c.id === id);
+            contacts[contactIndex].unread = 0;
+            renderContacts();
+
+            const contact = contacts[contactIndex];
+            const msgContainer = document.getElementById('message-container');
+            document.getElementById('chat-window').classList.remove('hidden');
+            document.getElementById('active-name').innerText = contact.name;
+            document.getElementById('active-avatar').src = contact.img;
+            document.getElementById('active-status').innerText = contact.status === 'online' ? 'Online' : 'Terakhir dilihat hari ini';
+            
+            msgContainer.innerHTML = `
+                <div class="bg-white self-start p-2 px-4 rounded-lg shadow-sm max-w-[70%] text-sm">
+                    ${contact.lastMsg}
+                    <span class="text-[10px] text-gray-500 block text-right">${contact.time}</span>
+                </div>`;
+        }
+
+        function receiveReply(id) {
+            if (currentContactId !== id) return;
+            const msgContainer = document.getElementById('message-container');
+            const reply = replies[Math.floor(Math.random() * replies.length)];
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            msgContainer.insertAdjacentHTML('beforeend', `
+                <div class="bg-white self-start p-2 px-4 rounded-lg shadow-sm max-w-[70%] text-sm">
+                    ${reply}
+                    <span class="text-[10px] text-gray-500 block text-right">${time}</span>
+                </div>`);
+            
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+            const idx = contacts.findIndex(c => c.id === id);
+            contacts[idx].lastMsg = reply;
+            contacts[idx].time = time;
+            renderContacts();
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('input-chat');
+            const msgContainer = document.getElementById('message-container');
+            if (!input.value.trim() || currentContactId === null) return;
+
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const contactId = currentContactId;
+
+            msgContainer.insertAdjacentHTML('beforeend', `
+                <div class="bg-[#dcf8c6] self-end p-2 px-4 rounded-lg shadow-sm max-w-[70%] text-sm relative">
+                    ${input.value}
+                    <span class="text-[10px] text-gray-500 block text-right">${time} <i class="fa-solid fa-check-double text-blue-400 ml-1"></i></span>
+                </div>`);
+            
+            const idx = contacts.findIndex(c => c.id === contactId);
+            contacts[idx].lastMsg = input.value;
+            contacts[idx].time = time;
+            
+            input.value = '';
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+            renderContacts();
+            setTimeout(() => receiveReply(contactId), 1500);
+        }
+
+        document.getElementById('input-chat').addEventListener('keypress', (e) => e.key === 'Enter' && sendMessage());
+        document.getElementById('send-btn').addEventListener('click', sendMessage);
+        renderContacts();
+    </script>
+</body>
+</html>
